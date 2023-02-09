@@ -1,0 +1,47 @@
+name: build_and_deploy
+on: [push]
+jobs:
+  build_and_push:
+    runs-on: ubuntu-latest
+    steps:
+      # Копируем код из репозитория в runner
+      - name: clone code
+        uses: actions/checkout@v2
+      - name: docker build
+        run: docker build -t Nadiabona/flask-app:$GITHUB_REF_NAME-$GITHUB_RUN_ID .
+      - name: docker login
+        run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u Nadiabona --password-stdin
+      - name: docker push
+        run: docker push Nadiabona/flask-app:$GITHUB_REF_NAME-$GITHUB_RUN_ID
+
+    deploy:
+      runs-on: ubuntu-latest
+      needs: build_and_push
+      steps:
+        - name: clone code
+          uses: actions/checkout@v2
+        - name: prepare docker compose
+          run: cat docker-compose-ci.yaml | envsubst > docker-compose.yaml
+        - name: clone files to server
+          uses: appleboy/scp-action@master
+          with:
+            # Эти значения надо вписать в секреты гитхаба
+            host: ${{ secrets.IP }}
+            username: ${{ secrets.LOGIN }}
+            password: ${{ secrets.PASSWORD }}
+            # Указываем, какие файлы копировать
+            source: "docker-compose.yaml"
+            # Место на виртуальной машине, куда скопируются файлы
+            target: "flask-app"
+
+            #strip_components: 1 Это ндао было бы если бы у нас docker/compose был не в корне
+        - name: run docker-compose
+          uses: appleboy/ssh-action@master
+          with:
+            host: ${{ secrets.IP }}
+            username: ${{ secrets.LOGIN}}
+            password: ${{ secrets.PASSWORD }}
+            # Переходим в директорию и запускаем через sudo команду docker-compose up
+            script: |
+              cd flask-app
+              echo ${{ secrets.PASSWORD }} | sudo -S docker-compose up -d
