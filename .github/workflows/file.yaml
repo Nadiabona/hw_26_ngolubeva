@@ -10,7 +10,7 @@ jobs:
       - name: docker build
         run: docker build -t nadiabona/flask-app:$GITHUB_REF_NAME-$GITHUB_RUN_ID .
       - name: docker login
-        run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u Nadiabona --password-stdin
+        run: echo ${{ secrets.DOCKER_TOKEN }} | docker login -u nadiabona --password-stdin
       - name: docker push
         run: docker push Nadiabona/flask-app:$GITHUB_REF_NAME-$GITHUB_RUN_ID .
 
